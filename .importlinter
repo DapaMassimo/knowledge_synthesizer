@@ -1,0 +1,25 @@
+[importlinter]
+root_package = knowledge_synthesizer
+
+[importlinter:contract:domain-isolation]
+name = Domain is isolated (depends on nothing inward-facing)
+type = forbidden
+source_modules =
+    knowledge_synthesizer.domain
+forbidden_modules =
+    knowledge_synthesizer.application
+    knowledge_synthesizer.adapters
+    knowledge_synthesizer.composition
+    knowledge_synthesizer.config
+    knowledge_synthesizer.entrypoints
+
+[importlinter:contract:application-purity]
+name = Application depends only on domain
+type = forbidden
+source_modules =
+    knowledge_synthesizer.application
+forbidden_modules =
+    knowledge_synthesizer.adapters
+    knowledge_synthesizer.composition
+    knowledge_synthesizer.config
+    knowledge_synthesizer.entrypoints
