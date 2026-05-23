@@ -36,6 +36,9 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["knowledge_synthesizer", "tests"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
@@ -48,12 +51,17 @@ files = ["src"]
 mypy_path = "src"
 explicit_package_bases = true
 namespace_packages = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra -m 'not eval'"
 testpaths = ["tests"]
-pythonpath = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "unit: fast tests using only fakes",
@@ -67,3 +75,9 @@ source = ["knowledge_synthesizer"]
 
 [tool.coverage.report]
 show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+    "@(typing\\.)?overload",
+]
