@@ -10,6 +10,7 @@ from knowledge_synthesizer.domain.models import (
     RawDocument,
     RetrievedChunk,
     Source,
+    Summary,
 )
 
 
@@ -73,3 +74,13 @@ class QueryTransformer(Protocol):
     """Turn a raw user question into one or more search queries."""
 
     def transform(self, question: str) -> list[str]: ...
+
+
+@runtime_checkable
+class Summarizer(Protocol):
+    """Summarize a topic from its supporting chunks into a structured Summary.
+
+    A swappable strategy (map-reduce, hierarchical, ...) so callers stay unchanged.
+    """
+
+    def summarize(self, topic: str, chunks: list[Chunk]) -> Summary: ...
