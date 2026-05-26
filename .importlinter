@@ -1,5 +1,6 @@
 [importlinter]
 root_package = knowledge_synthesizer
+include_external_packages = True
 
 [importlinter:contract:domain-isolation]
 name = Domain is isolated (depends on nothing inward-facing)
@@ -23,3 +24,22 @@ forbidden_modules =
     knowledge_synthesizer.composition
     knowledge_synthesizer.config
     knowledge_synthesizer.entrypoints
+
+[importlinter:contract:core-has-no-frameworks]
+name = Domain and application import no IO/orchestration frameworks
+type = forbidden
+source_modules =
+    knowledge_synthesizer.domain
+    knowledge_synthesizer.application
+forbidden_modules =
+    docling
+    docling_core
+    chromadb
+    openai
+    httpx
+    trafilatura
+    langchain
+    langgraph
+    ragas
+    torch
+    transformers
