@@ -9,22 +9,10 @@ from collections.abc import Callable, Sequence
 from knowledge_synthesizer.application.indexing import IndexReport
 from knowledge_synthesizer.composition.container import Container
 from knowledge_synthesizer.config.settings import Settings
-from knowledge_synthesizer.domain.models import (
-    Answer,
-    Citation,
-    FileSource,
-    Source,
-    Summary,
-    WebSource,
-)
+from knowledge_synthesizer.domain.models import Answer, Citation, Summary
+from knowledge_synthesizer.entrypoints.presentation import parse_source
 
 Emit = Callable[[str], None]
-
-
-def _to_source(value: str) -> Source:
-    if value.startswith(("http://", "https://")):
-        return WebSource(url=value)
-    return FileSource(path=value)
 
 
 def _citation_lines(citations: list[Citation]) -> list[str]:
@@ -69,7 +57,7 @@ def _emit_summary(summary: Summary, emit: Emit) -> None:
 
 def _dispatch(args: argparse.Namespace, container: Container, emit: Emit) -> int:
     if args.command == "index":
-        sources = [_to_source(value) for value in args.sources]
+        sources = [parse_source(value) for value in args.sources]
         _emit_report(asyncio.run(container.indexing_service().index(sources)), emit)
     elif args.command == "ask":
         _emit_answer(asyncio.run(container.qa_service().ask(args.question)), emit)

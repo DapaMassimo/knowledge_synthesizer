@@ -2,7 +2,7 @@ import pytest
 
 from knowledge_synthesizer.application.indexing import IndexReport
 from knowledge_synthesizer.domain.models import Answer, Citation, FileSource, Summary, WebSource
-from knowledge_synthesizer.entrypoints.cli import _dispatch, _to_source, build_parser
+from knowledge_synthesizer.entrypoints.cli import _dispatch, build_parser
 
 pytestmark = pytest.mark.unit
 
@@ -44,12 +44,6 @@ class _StubContainer:
 
     def summarization_service(self) -> _StubService | None:
         return self._summarization
-
-
-def test_to_source_detects_kind() -> None:
-    assert isinstance(_to_source("https://example.com"), WebSource)
-    assert isinstance(_to_source("http://example.com"), WebSource)
-    assert isinstance(_to_source("/tmp/a.pdf"), FileSource)
 
 
 def test_dispatch_index_parses_sources_and_reports() -> None:

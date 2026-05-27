@@ -12,6 +12,7 @@ dependencies = [
     "openai>=2.41.0",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
+    "streamlit>=1.58.0",
     "trafilatura>=2.0.0",
 ]
 
