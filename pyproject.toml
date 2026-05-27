@@ -15,6 +15,9 @@ dependencies = [
     "trafilatura>=2.0.0",
 ]
 
+[project.scripts]
+knowledge-synthesizer = "knowledge_synthesizer.entrypoints.cli:main"
+
 [dependency-groups]
 dev = [
     "ruff>=0.6.0",
