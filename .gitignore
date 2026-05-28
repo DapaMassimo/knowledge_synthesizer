@@ -26,6 +26,10 @@ coverage.xml
 .chroma/
 .cache/
 
+# Test fixtures: PDFs kept locally (may be large/copyrighted), not committed.
+# Tests skip when the fixture is absent.
+tests/fixtures/*.pdf
+
 # Editor / OS
 .DS_Store
 .idea/

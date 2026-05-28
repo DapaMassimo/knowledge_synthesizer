@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     chroma_path: str | None = ".chroma"
     collection_name: str = "knowledge"
     docling_cache_dir: str | None = ".cache/docling"
+    docling_artifacts_path: str | None = None
+    docling_do_ocr: bool = True
     use_cache: bool = True
 
     query_strategy: Literal["multiquery", "hyde", "passthrough"] = "multiquery"

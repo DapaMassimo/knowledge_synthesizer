@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
-from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling_core.types.doc import DoclingDocument  # type: ignore[attr-defined]
 from docling_core.types.io import DocumentStream
 
@@ -20,6 +23,19 @@ _MIME_TO_SUFFIX: dict[str, str] = {
     "text/plain": ".md",
     "text/html": ".html",
 }
+
+
+def _build_converter(artifacts_path: Path | None, do_ocr: bool) -> DocumentConverter:
+    """Build a converter. ``artifacts_path`` loads PDF models from a local dir (offline);
+    ``do_ocr=False`` skips OCR (much faster for digital PDFs with embedded text)."""
+    if artifacts_path is None and do_ocr:
+        return DocumentConverter()
+    pdf_options = PdfPipelineOptions(do_ocr=do_ocr)
+    if artifacts_path is not None:
+        pdf_options.artifacts_path = artifacts_path
+    return DocumentConverter(
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_options)}
+    )
 
 
 def _title_from_markdown(markdown: str) -> str | None:
@@ -42,9 +58,13 @@ class DoclingParser:
         cache: DoclingDocumentCache,
         converter: DocumentConverter | None = None,
         use_cache: bool = True,
+        artifacts_path: Path | None = None,
+        do_ocr: bool = True,
     ) -> None:
         self._cache = cache
-        self._converter = converter if converter is not None else DocumentConverter()
+        self._converter = (
+            converter if converter is not None else _build_converter(artifacts_path, do_ocr)
+        )
         self._use_cache = use_cache
 
     def parse(self, raw: RawDocument) -> ParsedDocument:

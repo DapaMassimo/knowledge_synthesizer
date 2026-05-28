@@ -51,9 +51,15 @@ class Container:
 
     def indexing_service(self) -> IndexingService:
         cache = self._docling_cache()
+        artifacts = self._settings.docling_artifacts_path
         return IndexingService(
             loader=RoutingSourceLoader(FileLoader(), WebLoader()),
-            parser=DoclingParser(cache=cache, use_cache=self._settings.use_cache),
+            parser=DoclingParser(
+                cache=cache,
+                use_cache=self._settings.use_cache,
+                artifacts_path=Path(artifacts) if artifacts else None,
+                do_ocr=self._settings.docling_do_ocr,
+            ),
             chunker=DoclingChunker(cache=cache),
             embeddings=self._embeddings(),
             store=self._vector_store(),
