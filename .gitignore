@@ -25,6 +25,7 @@ coverage.xml
 # App data / caches
 .chroma/
 .cache/
+.uploads/
 
 # Test fixtures: PDFs kept locally (may be large/copyrighted), not committed.
 # Tests skip when the fixture is absent.

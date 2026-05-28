@@ -1,6 +1,8 @@
-"""Pure presentation helpers shared by entrypoints (no UI framework imports)."""
+"""Presentation helpers shared by entrypoints (no UI framework imports)."""
 
 from __future__ import annotations
+
+from pathlib import Path
 
 from knowledge_synthesizer.domain.models import (
     Answer,
@@ -23,6 +25,21 @@ def parse_source(value: str) -> Source:
 
 def parse_sources(raw: str) -> list[Source]:
     return [parse_source(line) for line in raw.splitlines() if line.strip()]
+
+
+def materialize_uploads(items: list[tuple[str, bytes]], dest_dir: Path) -> list[Source]:
+    """Persist uploaded (filename, bytes) pairs under dest_dir and return file sources.
+
+    The filename is reduced to its basename so an upload can't write outside dest_dir.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    sources: list[Source] = []
+    for name, data in items:
+        safe_name = Path(name).name or "upload"
+        path = dest_dir / safe_name
+        path.write_bytes(data)
+        sources.append(FileSource(path=str(path)))
+    return sources
 
 
 def citation_markdown(index: int, citation: Citation) -> str:

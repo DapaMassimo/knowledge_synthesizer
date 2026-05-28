@@ -1,10 +1,19 @@
+from pathlib import Path
+
 import pytest
 
-from knowledge_synthesizer.domain.models import Answer, Citation, FileSource, Summary, WebSource
+from knowledge_synthesizer.domain.models import (
+    Answer,
+    Citation,
+    FileSource,
+    Summary,
+    WebSource,
+)
 from knowledge_synthesizer.entrypoints.presentation import (
     answer_markdown,
     citation_markdown,
     citations_markdown,
+    materialize_uploads,
     parse_source,
     parse_sources,
     summary_markdown,
@@ -23,6 +32,25 @@ def test_parse_sources_skips_blank_lines() -> None:
     assert len(sources) == 2
     assert isinstance(sources[0], FileSource)
     assert isinstance(sources[1], WebSource)
+
+
+def test_materialize_uploads_writes_files_and_returns_sources(tmp_path: Path) -> None:
+    dest = tmp_path / "uploads"
+    sources = materialize_uploads([("a.pdf", b"PDF"), ("notes.md", b"# Hi")], dest)
+
+    assert all(isinstance(source, FileSource) for source in sources)
+    assert (dest / "a.pdf").read_bytes() == b"PDF"
+    assert (dest / "notes.md").read_bytes() == b"# Hi"
+    assert {Path(s.path).name for s in sources} == {"a.pdf", "notes.md"}  # type: ignore[attr-defined]
+
+
+def test_materialize_uploads_strips_directory_components(tmp_path: Path) -> None:
+    dest = tmp_path / "uploads"
+    [source] = materialize_uploads([("../../etc/evil.txt", b"x")], dest)
+
+    written = Path(source.path)  # type: ignore[attr-defined]
+    assert written.parent == dest  # cannot escape dest_dir
+    assert written.name == "evil.txt"
 
 
 def test_citation_markdown_links_web_but_not_files() -> None:

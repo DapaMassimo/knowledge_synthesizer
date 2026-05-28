@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Coroutine
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
@@ -16,9 +17,13 @@ from knowledge_synthesizer.composition.container import Container
 from knowledge_synthesizer.config.settings import Settings
 from knowledge_synthesizer.entrypoints.presentation import (
     answer_markdown,
+    materialize_uploads,
     parse_sources,
     summary_markdown,
 )
+
+_UPLOAD_DIR = Path(".uploads")
+_UPLOAD_TYPES = ["pdf", "pptx", "docx", "txt", "md", "html"]
 
 
 @st.cache_resource
@@ -37,11 +42,23 @@ def _render() -> None:
 
     with st.sidebar:
         st.header("Sources")
-        raw_sources = st.text_area("File paths or URLs (one per line)", key="sources_input")
+        uploads = st.file_uploader(
+            "Upload documents",
+            type=_UPLOAD_TYPES,
+            accept_multiple_files=True,
+            key="uploads_input",
+        )
+        raw_sources = st.text_area(
+            "…or paste file paths / URLs (one per line)", key="sources_input"
+        )
         if st.button("Index", key="index_button"):
             sources = parse_sources(raw_sources)
+            if uploads:
+                sources += materialize_uploads(
+                    [(file.name, file.getvalue()) for file in uploads], _UPLOAD_DIR
+                )
             if not sources:
-                st.warning("Add at least one file path or URL.")
+                st.warning("Upload a document or add a file path / URL.")
             else:
                 with st.spinner("Indexing…"):
                     report = _run(container.indexing_service().index(sources))
