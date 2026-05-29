@@ -25,6 +25,16 @@ from knowledge_synthesizer.entrypoints.presentation import (
 _UPLOAD_DIR = Path(".uploads")
 _UPLOAD_TYPES = ["pdf", "pptx", "docx", "txt", "md", "html"]
 
+_STEPS = (
+    "#### How to use\n"
+    "1. **Add sources** — upload documents (or paste file paths / URLs) in the left sidebar.\n"
+    "2. **Click _Index_** — process them into the searchable store. Do this once per document"
+    " (re-indexing the same file is skipped); large PDFs take a little while.\n"
+    "3. **Summary tab** — type a topic and click _Summarize_ for a structured overview.\n"
+    "4. **Ask tab** — ask questions and get answers with inline citations.\n\n"
+    "_Summarize and Ask only use what you've already indexed._"
+)
+
 
 @st.cache_resource
 def _container() -> Container:
@@ -38,6 +48,7 @@ def _run[T](coro: Coroutine[Any, Any, T]) -> T:
 def _render() -> None:
     st.set_page_config(page_title="Knowledge Synthesizer", layout="wide")
     st.title("Knowledge Synthesizer")
+    st.markdown(_STEPS)
     container = _container()
 
     with st.sidebar:

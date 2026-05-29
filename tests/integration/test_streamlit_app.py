@@ -11,5 +11,7 @@ def test_app_renders_without_interaction() -> None:
 
     assert not app.exception
     assert app.title[0].value == "Knowledge Synthesizer"
+    # The home shows the step-by-step guide.
+    assert any("How to use" in block.value for block in app.markdown)
     # Inputs are present and no service was invoked (no network) on first render.
     assert any(button.label == "Index" for button in app.button)
