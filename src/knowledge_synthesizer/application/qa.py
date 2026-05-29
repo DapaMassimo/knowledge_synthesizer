@@ -14,9 +14,14 @@ from knowledge_synthesizer.domain.models import Answer, Citation, RetrievedChunk
 from knowledge_synthesizer.domain.ports import LLMProvider, Retriever
 
 _QA_SYSTEM = (
-    "You answer questions strictly from the provided context. Cite the sources you use "
-    "inline with their bracket numbers like [1]. If the context does not contain the "
-    "answer, say you don't know. Do not invent facts or citations."
+    "You are a knowledgeable assistant answering questions from the user's documents. "
+    "Use the numbered context below as your evidence and cite the parts you rely on "
+    "inline with their bracket numbers like [1]. You may reason over and synthesize "
+    "across the context to fully answer — including analytical or generative requests "
+    "such as 'what should I ask about X', 'compare', or 'summarize'. Prefer a useful, "
+    "well-structured answer grounded in the context over refusing; only say you don't "
+    "know if the context is clearly unrelated to the question. Reply in the same "
+    "language as the question, and never invent facts or citations."
 )
 _NO_CONTEXT = "I don't have enough information in the provided sources to answer that."
 _CITATION_PATTERN = re.compile(r"\[(\d+)\]")
@@ -27,7 +32,7 @@ class QAService:
         self,
         retriever: Retriever,
         llm: LLMProvider,
-        k: int = 5,
+        k: int = 8,
         snippet_chars: int = 200,
     ) -> None:
         self._retriever = retriever

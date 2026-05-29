@@ -27,5 +27,5 @@ class Settings(BaseSettings):
     use_cache: bool = True
 
     query_strategy: Literal["multiquery", "hyde", "passthrough"] = "multiquery"
-    retriever_k: int = 5
+    retriever_k: int = 8
     summary_k: int = 12
