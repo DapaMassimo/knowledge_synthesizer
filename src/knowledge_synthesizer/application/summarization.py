@@ -9,9 +9,12 @@ strategy can replace map-reduce without touching callers.
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from knowledge_synthesizer.domain.models import Chunk, Citation, Summary
 from knowledge_synthesizer.domain.ports import LLMProvider, Retriever, Summarizer
+
+logger = logging.getLogger(__name__)
 
 _MAP_SYSTEM = (
     "You extract what a single passage says about a topic. Reply with one or two factual "
@@ -75,6 +78,7 @@ class SummarizationService:
 
     def _summarize(self, topic: str) -> Summary:
         chunks = [hit.chunk for hit in self._retriever.retrieve(topic, self._k)]
+        logger.info("Summarize: %r — %d chunk(s) gathered", topic, len(chunks))
         if not chunks:
             return Summary(
                 topic=topic,

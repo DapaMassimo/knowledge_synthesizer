@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
 
 from openai import OpenAI, OpenAIError
 
 from knowledge_synthesizer.domain.errors import LLMError
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "gpt-4o-mini"
 
@@ -27,6 +30,13 @@ class OpenAILLM:
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ]
+        logger.info(
+            "LLM call: model=%s, system=%d chars, prompt=%d chars",
+            self._model,
+            len(system),
+            len(prompt),
+        )
+        logger.debug("LLM prompt:\n%s", prompt)
         try:
             response = self._client.chat.completions.create(
                 model=self._model,
@@ -34,5 +44,13 @@ class OpenAILLM:
                 messages=cast("Any", messages),
             )
         except OpenAIError as exc:
+            logger.warning("LLM call failed: %s", exc)
             raise LLMError(f"OpenAI completion failed: {exc}") from exc
-        return response.choices[0].message.content or ""
+        content = response.choices[0].message.content or ""
+        usage = getattr(response, "usage", None)
+        tokens = getattr(usage, "total_tokens", None)
+        logger.info(
+            "LLM response: %d chars%s", len(content), f", {tokens} tokens" if tokens else ""
+        )
+        logger.debug("LLM response body:\n%s", content)
+        return content

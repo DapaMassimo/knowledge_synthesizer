@@ -7,6 +7,7 @@ The UI calls the container only; all logic lives in the use cases. Pure formatti
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Coroutine
 from pathlib import Path
 from typing import Any
@@ -15,8 +16,10 @@ import streamlit as st
 
 from knowledge_synthesizer.composition.container import Container
 from knowledge_synthesizer.config.settings import Settings
+from knowledge_synthesizer.entrypoints.logsetup import clear_logs, configure_logging, get_logs
 from knowledge_synthesizer.entrypoints.presentation import (
     answer_markdown,
+    mask_secret,
     materialize_uploads,
     parse_sources,
     summary_markdown,
@@ -47,7 +50,23 @@ def _run[T](coro: Coroutine[Any, Any, T]) -> T:
 
 def _render() -> None:
     st.set_page_config(page_title="Knowledge Synthesizer", layout="wide")
+    settings = Settings()
+    if configure_logging(settings.log_level):
+        logging.getLogger("knowledge_synthesizer.entrypoints").info(
+            "Startup — OpenAI key %s · model %s · embeddings %s · strategy %s · k=%d",
+            mask_secret(settings.openai_api_key),
+            settings.llm_model,
+            settings.embedding_model,
+            settings.query_strategy,
+            settings.retriever_k,
+        )
+
     st.title("Knowledge Synthesizer")
+    st.caption(
+        f"🔑 OpenAI key: `{mask_secret(settings.openai_api_key)}`  ·  "
+        f"model `{settings.llm_model}`  ·  strategy `{settings.query_strategy}` "
+        f"(k={settings.retriever_k})"
+    )
     st.markdown(_STEPS)
     container = _container()
 
@@ -95,6 +114,12 @@ def _render() -> None:
             with st.chat_message("assistant"), st.spinner("Thinking…"):
                 answer = _run(container.qa_service().ask(question))
                 st.markdown(answer_markdown(answer))
+
+    with st.expander("📋 Logs", expanded=False):
+        if st.button("Clear logs", key="clear_logs_button"):
+            clear_logs()
+        lines = get_logs()
+        st.code("\n".join(lines[-200:]) if lines else "(no logs yet)", language="log")
 
 
 _render()

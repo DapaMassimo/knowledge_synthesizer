@@ -10,6 +10,7 @@ from knowledge_synthesizer.application.indexing import IndexReport
 from knowledge_synthesizer.composition.container import Container
 from knowledge_synthesizer.config.settings import Settings
 from knowledge_synthesizer.domain.models import Answer, Citation, Summary
+from knowledge_synthesizer.entrypoints.logsetup import configure_logging
 from knowledge_synthesizer.entrypoints.presentation import parse_source
 
 Emit = Callable[[str], None]
@@ -87,7 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    container = Container(Settings())
+    settings = Settings()
+    configure_logging(settings.log_level, to_console=True)
+    container = Container(settings)
     return _dispatch(args, container, print)
 
 

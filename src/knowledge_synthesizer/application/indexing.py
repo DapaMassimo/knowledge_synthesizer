@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from pydantic import BaseModel, ConfigDict
 
@@ -14,6 +15,8 @@ from knowledge_synthesizer.domain.ports import (
     SourceLoader,
     VectorStore,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class IndexReport(BaseModel):
@@ -48,6 +51,7 @@ class IndexingService:
         self._store = store
 
     async def index(self, sources: list[Source]) -> IndexReport:
+        logger.info("Indexing %d source(s)…", len(sources))
         seen = set(self._store.existing_document_hashes())
         documents_indexed = 0
         documents_skipped = 0
@@ -57,12 +61,21 @@ class IndexingService:
             for raw in await self._loader.load(source):
                 if raw.content_hash in seen:
                     documents_skipped += 1
+                    logger.info("Skipped %s (already indexed)", source.uri)
                     continue
                 # Docling parsing is CPU-bound; keep it off the event loop.
-                chunks_indexed += await asyncio.to_thread(self._process_document, raw)
+                count = await asyncio.to_thread(self._process_document, raw)
+                chunks_indexed += count
                 seen.add(raw.content_hash)
                 documents_indexed += 1
+                logger.info("Indexed %s — %d chunk(s)", source.uri, count)
 
+        logger.info(
+            "Indexing done: %d indexed, %d skipped, %d chunk(s)",
+            documents_indexed,
+            documents_skipped,
+            chunks_indexed,
+        )
         return IndexReport(
             documents_indexed=documents_indexed,
             documents_skipped=documents_skipped,

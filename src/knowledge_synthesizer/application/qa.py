@@ -8,10 +8,13 @@ on domain abstractions.
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 
 from knowledge_synthesizer.domain.models import Answer, Citation, RetrievedChunk
 from knowledge_synthesizer.domain.ports import LLMProvider, Retriever
+
+logger = logging.getLogger(__name__)
 
 _QA_SYSTEM = (
     "You are a knowledgeable assistant answering questions from the user's documents. "
@@ -46,14 +49,14 @@ class QAService:
 
     def _answer(self, question: str) -> Answer:
         retrieved = self._retriever.retrieve(question, self._k)
+        logger.info("QA: %r — retrieved %d chunk(s)", question, len(retrieved))
         if not retrieved:
+            logger.info("QA: no context found for %r", question)
             return Answer(question=question, text=_NO_CONTEXT, citations=[])
         completion = self._llm.complete(_QA_SYSTEM, self._build_prompt(question, retrieved)).strip()
-        return Answer(
-            question=question,
-            text=completion,
-            citations=self._citations(completion, retrieved),
-        )
+        citations = self._citations(completion, retrieved)
+        logger.info("QA: answered %r with %d citation(s)", question, len(citations))
+        return Answer(question=question, text=completion, citations=citations)
 
     def _build_prompt(self, question: str, retrieved: list[RetrievedChunk]) -> str:
         blocks = [

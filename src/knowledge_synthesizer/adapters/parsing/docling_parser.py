@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 
 from docling.datamodel.base_models import InputFormat
@@ -23,6 +24,8 @@ _MIME_TO_SUFFIX: dict[str, str] = {
     "text/plain": ".md",
     "text/html": ".html",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _build_converter(artifacts_path: Path | None, do_ocr: bool) -> DocumentConverter:
@@ -70,7 +73,12 @@ class DoclingParser:
     def parse(self, raw: RawDocument) -> ParsedDocument:
         document = self._cache.get(raw.content_hash, use_disk=self._use_cache)
         if document is None:
+            logger.info(
+                "Parsing %s (%s, %d bytes)…", raw.source.uri, raw.mime_type, len(raw.content)
+            )
             document = self._convert(raw)
+        else:
+            logger.info("Parse cache hit for %s", raw.source.uri)
         # Always store in memory (parser -> chunker hand-off); disk gated by use_cache.
         self._cache.put(raw.content_hash, document, use_disk=self._use_cache)
 

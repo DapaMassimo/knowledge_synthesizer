@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+
 import httpx
 import trafilatura
 
 from knowledge_synthesizer.domain.errors import SourceLoadError
 from knowledge_synthesizer.domain.models import RawDocument, Source, WebSource
+
+logger = logging.getLogger(__name__)
 
 _WEB_MIME = "text/markdown"
 
@@ -25,8 +29,10 @@ class WebLoader:
     async def load(self, source: Source) -> list[RawDocument]:
         if not isinstance(source, WebSource):
             raise SourceLoadError(f"WebLoader cannot load source of kind {source.kind!r}")
+        logger.info("Fetching %s", source.url)
         html = await self._fetch(source.url)
         markdown = self._extract(html, source.url)
+        logger.info("Extracted %d chars of markdown from %s", len(markdown), source.url)
         return [
             RawDocument(
                 content=markdown.encode("utf-8"),

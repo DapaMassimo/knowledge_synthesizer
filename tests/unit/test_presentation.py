@@ -13,6 +13,7 @@ from knowledge_synthesizer.entrypoints.presentation import (
     answer_markdown,
     citation_markdown,
     citations_markdown,
+    mask_secret,
     materialize_uploads,
     parse_source,
     parse_sources,
@@ -66,6 +67,20 @@ def test_citation_markdown_links_web_but_not_files() -> None:
 
 def test_citations_markdown_empty_is_blank() -> None:
     assert citations_markdown([]) == ""
+
+
+def test_mask_secret_hides_the_value_but_identifies_it() -> None:
+    masked = mask_secret("tok_ABCDEFGHIJKLMNOPQRST")
+    assert "ABCDEFGHIJ" not in masked  # the middle is hidden
+    assert masked.startswith("sk-proj")
+    assert "mCEA" in masked
+    assert "len 28" in masked
+
+
+def test_mask_secret_handles_empty_and_short() -> None:
+    assert mask_secret("") == "(not set)"
+    assert mask_secret("   ") == "(not set)"
+    assert "len 5" in mask_secret("short")
 
 
 def test_answer_markdown_with_and_without_citations() -> None:

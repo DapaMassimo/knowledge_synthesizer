@@ -7,7 +7,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from knowledge_synthesizer.domain.ports import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 _MULTIQUERY_SYSTEM = (
     "You rewrite a user question into diverse, standalone search queries that surface "
@@ -41,7 +45,11 @@ class MultiQueryTransformer:
             cleaned = line.strip().lstrip(_LIST_NOISE).strip()
             if cleaned and cleaned not in queries:
                 queries.append(cleaned)
-        return queries[: self._n + 1]
+        result = queries[: self._n + 1]
+        logger.info(
+            "Multi-query: %r → %d reformulation(s): %s", question, len(result) - 1, result[1:]
+        )
+        return result
 
 
 class HydeTransformer:
@@ -51,4 +59,13 @@ class HydeTransformer:
     def transform(self, question: str) -> list[str]:
         prompt = f"Question: {question}\nPassage:"
         passage = self._llm.complete(_HYDE_SYSTEM, prompt).strip()
-        return [passage] if passage else [question]
+        if passage:
+            logger.info(
+                "HyDE: %r → hypothetical passage (%d chars): %.160s",
+                question,
+                len(passage),
+                passage,
+            )
+            return [passage]
+        logger.info("HyDE: %r → empty passage, falling back to the question", question)
+        return [question]

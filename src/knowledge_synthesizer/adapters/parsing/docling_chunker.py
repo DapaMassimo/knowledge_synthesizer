@@ -6,6 +6,8 @@ cache (populated by DoclingParser) keyed by ``content_hash``.
 
 from __future__ import annotations
 
+import logging
+
 from docling.chunking import (  # type: ignore[attr-defined]
     BaseChunk,
     BaseChunker,
@@ -20,6 +22,8 @@ from knowledge_synthesizer.domain.models import (
     ParsedDocument,
     make_chunk_id,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DoclingChunker:
@@ -49,6 +53,7 @@ class DoclingChunker:
                     ),
                 )
             )
+        logger.info("Chunked %s into %d chunk(s)", doc.source.uri, len(chunks))
         return chunks
 
     @staticmethod

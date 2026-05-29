@@ -27,6 +27,16 @@ def parse_sources(raw: str) -> list[Source]:
     return [parse_source(line) for line in raw.splitlines() if line.strip()]
 
 
+def mask_secret(value: str) -> str:
+    """Show enough of a secret to identify it, without exposing it (prefix…suffix + length)."""
+    value = value.strip()
+    if not value:
+        return "(not set)"
+    if len(value) <= 8:
+        return f"…{value[-2:]} (len {len(value)})"
+    return f"{value[:7]}…{value[-4:]} (len {len(value)})"
+
+
 def materialize_uploads(items: list[tuple[str, bytes]], dest_dir: Path) -> list[Source]:
     """Persist uploaded (filename, bytes) pairs under dest_dir and return file sources.
 

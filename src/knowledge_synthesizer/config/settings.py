@@ -29,3 +29,5 @@ class Settings(BaseSettings):
     query_strategy: Literal["multiquery", "hyde", "passthrough"] = "multiquery"
     retriever_k: int = 8
     summary_k: int = 12
+
+    log_level: str = "INFO"
