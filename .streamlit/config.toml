@@ -1,0 +1,8 @@
+# Disable the local sources watcher: it repeatedly scans module __path__s and triggers
+# noisy `transformers`/`torch` lazy-import warnings (zoedepth, etc.). We restart the app
+# manually to pick up code changes anyway.
+[server]
+fileWatcherType = "none"
+
+[browser]
+gatherUsageStats = false
