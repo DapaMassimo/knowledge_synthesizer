@@ -97,6 +97,13 @@ def _render() -> None:
                     f"skipped {report.documents_skipped}, {report.chunks_indexed} chunk(s)."
                 )
 
+        st.divider()
+        indexed = container.indexed_sources()
+        st.caption(f"**Indexed: {len(indexed)} document(s)** — kept across restarts")
+        for source in indexed:
+            label = source if source.startswith(("http://", "https://")) else Path(source).name
+            st.caption(f"📄 {label}")
+
     summary_tab, qa_tab = st.tabs(["Summary", "Ask"])
 
     with summary_tab:

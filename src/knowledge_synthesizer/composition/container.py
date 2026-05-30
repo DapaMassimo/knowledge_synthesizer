@@ -75,6 +75,10 @@ class Container:
             k=self._settings.summary_k,
         )
 
+    def indexed_sources(self) -> list[str]:
+        """Source URIs already in the vector store (persisted across restarts)."""
+        return self._vector_store().indexed_sources()
+
     def _openai(self) -> OpenAI:
         if self._client is None:
             self._client = OpenAI(api_key=self._settings.openai_api_key or None)

@@ -68,17 +68,28 @@ class ChromaVectorStore:
         return retrieved
 
     def existing_document_hashes(self) -> set[str]:
+        return {
+            str(metadata["document_hash"])
+            for metadata in self._all_metadatas()
+            if metadata.get("document_hash") is not None
+        }
+
+    def indexed_sources(self) -> list[str]:
+        return sorted(
+            {
+                str(metadata["source_uri"])
+                for metadata in self._all_metadatas()
+                if metadata.get("source_uri") is not None
+            }
+        )
+
+    def _all_metadatas(self) -> list[dict[str, Any]]:
         try:
             raw = self._collection.get(include=["metadatas"])
         except (chromadb.errors.ChromaError, ValueError) as exc:
             raise VectorStoreError(f"chroma get failed: {exc}") from exc
         result = cast("dict[str, Any]", raw)
-        metadatas = result.get("metadatas") or []
-        return {
-            str(metadata["document_hash"])
-            for metadata in metadatas
-            if metadata and metadata.get("document_hash") is not None
-        }
+        return [metadata for metadata in (result.get("metadatas") or []) if metadata]
 
     @staticmethod
     def _metadata(chunk: Chunk) -> dict[str, str | int]:

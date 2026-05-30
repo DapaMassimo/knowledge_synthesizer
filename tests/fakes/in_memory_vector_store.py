@@ -28,6 +28,9 @@ class InMemoryVectorStore:
     def existing_document_hashes(self) -> set[str]:
         return {chunk.document_hash for chunk, _ in self._items.values()}
 
+    def indexed_sources(self) -> list[str]:
+        return sorted({chunk.provenance.source_uri for chunk, _ in self._items.values()})
+
     def __len__(self) -> int:
         return len(self._items)
 

@@ -54,6 +54,10 @@ class VectorStore(Protocol):
         """Document hashes already stored — enables idempotent incremental indexing."""
         ...
 
+    def indexed_sources(self) -> list[str]:
+        """Distinct source URIs currently stored — for showing what's already indexed."""
+        ...
+
 
 @runtime_checkable
 class Retriever(Protocol):

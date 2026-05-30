@@ -60,3 +60,4 @@ def test_vector_store_reports_existing_document_hashes() -> None:
     chunks = [_chunk("a", 0, "hash-a"), _chunk("b", 0, "hash-b")]
     store.upsert(chunks, emb.embed([c.text for c in chunks]))
     assert store.existing_document_hashes() == {"hash-a", "hash-b"}
+    assert store.indexed_sources() == ["/a.pdf"]  # both chunks share the same source_uri

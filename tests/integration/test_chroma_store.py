@@ -60,6 +60,16 @@ def test_existing_document_hashes_reports_all() -> None:
     assert store.existing_document_hashes() == {"h1", "h2"}
 
 
+def test_indexed_sources_lists_distinct_uris() -> None:
+    store = ChromaVectorStore.ephemeral(name="sources_collection")
+    store.upsert(
+        [_chunk("a", "x", doc_hash="h1"), _chunk("b", "y", doc_hash="h1")],
+        [[1.0, 0.0], [0.0, 1.0]],
+    )
+    # Both chunks share source_uri "/a.pdf" -> one distinct source.
+    assert store.indexed_sources() == ["/a.pdf"]
+
+
 def test_empty_upsert_is_a_noop() -> None:
     store = ChromaVectorStore.ephemeral(name="empty_collection")
     store.upsert([], [])

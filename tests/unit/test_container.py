@@ -37,6 +37,10 @@ def test_vector_store_and_cache_are_memoized() -> None:
     assert container._docling_cache() is container._docling_cache()
 
 
+def test_indexed_sources_is_empty_for_a_fresh_store() -> None:
+    assert Container(_settings()).indexed_sources() == []
+
+
 @pytest.mark.parametrize(
     ("strategy", "expected"),
     [
