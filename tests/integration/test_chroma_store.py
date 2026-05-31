@@ -76,6 +76,32 @@ def test_empty_upsert_is_a_noop() -> None:
     assert store.existing_document_hashes() == set()
 
 
+def test_persistent_recovers_from_stale_system(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import knowledge_synthesizer.adapters.vectorstores.chroma_store as module
+
+    real_client = module.chromadb.PersistentClient
+    calls = {"client": 0, "reset": 0}
+
+    def flaky_client(path: str) -> object:
+        calls["client"] += 1
+        if calls["client"] == 1:
+            raise AttributeError("'RustBindingsAPI' object has no attribute 'bindings'")
+        return real_client(path=path)
+
+    monkeypatch.setattr(module.chromadb, "PersistentClient", flaky_client)
+    monkeypatch.setattr(
+        module, "_reset_chroma_system_cache", lambda: calls.__setitem__("reset", calls["reset"] + 1)
+    )
+
+    store = ChromaVectorStore.persistent(tmp_path, name="recover_collection")
+
+    assert calls["client"] == 2  # retried after the AttributeError
+    assert calls["reset"] == 1  # cleared the stale system cache once
+    assert store.existing_document_hashes() == set()
+
+
 def test_persistent_store_round_trips(tmp_path: Path) -> None:
     ChromaVectorStore.persistent(tmp_path, name="persist_collection").upsert(
         [_chunk("a", "hello world", page=3)], [[1.0, 0.0]]

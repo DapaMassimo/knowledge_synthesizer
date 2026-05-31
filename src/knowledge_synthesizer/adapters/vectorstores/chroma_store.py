@@ -28,7 +28,13 @@ class ChromaVectorStore:
 
     @classmethod
     def persistent(cls, path: Path | str, name: str = _DEFAULT_COLLECTION) -> ChromaVectorStore:
-        client = chromadb.PersistentClient(path=str(path))
+        try:
+            client = chromadb.PersistentClient(path=str(path))
+        except AttributeError:
+            # A stale in-process Chroma system (e.g. the persist dir was deleted while the
+            # app held it open) breaks client re-creation. Drop the cached systems and retry.
+            _reset_chroma_system_cache()
+            client = chromadb.PersistentClient(path=str(path))
         return cls(client.get_or_create_collection(name=name, metadata=_COSINE_SPACE))
 
     def upsert(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:
@@ -102,6 +108,13 @@ class ChromaVectorStore:
         if chunk.provenance.section is not None:
             metadata["section"] = chunk.provenance.section
         return metadata
+
+
+def _reset_chroma_system_cache() -> None:
+    """Clear Chroma's cached systems (drops references without calling their buggy stop())."""
+    from chromadb.api.shared_system_client import SharedSystemClient
+
+    SharedSystemClient.clear_system_cache()
 
 
 def _first(values: Any) -> list[Any]:
