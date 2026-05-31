@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from knowledge_synthesizer.domain.models import (
@@ -14,6 +15,7 @@ from knowledge_synthesizer.domain.models import (
 )
 
 _URL_PREFIXES = ("http://", "https://")
+_SECRET_HINTS = ("key", "token", "secret", "password")
 
 
 def parse_source(value: str) -> Source:
@@ -35,6 +37,18 @@ def mask_secret(value: str) -> str:
     if len(value) <= 8:
         return f"…{value[-2:]} (len {len(value)})"
     return f"{value[:7]}…{value[-4:]} (len {len(value)})"
+
+
+def settings_rows(values: Mapping[str, object]) -> list[tuple[str, str]]:
+    """Render config settings as (name, value) rows, masking secret-looking fields."""
+    rows: list[tuple[str, str]] = []
+    for name in sorted(values):
+        raw = values[name]
+        if isinstance(raw, str) and any(hint in name.lower() for hint in _SECRET_HINTS):
+            rows.append((name, mask_secret(raw)))
+        else:
+            rows.append((name, str(raw)))
+    return rows
 
 
 def materialize_uploads(items: list[tuple[str, bytes]], dest_dir: Path) -> list[Source]:

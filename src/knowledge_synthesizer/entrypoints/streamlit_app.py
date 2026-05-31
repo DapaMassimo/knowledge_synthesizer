@@ -22,6 +22,7 @@ from knowledge_synthesizer.entrypoints.presentation import (
     mask_secret,
     materialize_uploads,
     parse_sources,
+    settings_rows,
     summary_markdown,
 )
 
@@ -51,15 +52,12 @@ def _run[T](coro: Coroutine[Any, Any, T]) -> T:
 def _render() -> None:
     st.set_page_config(page_title="Knowledge Synthesizer", layout="wide")
     settings = Settings()
+    rows = settings_rows(settings.model_dump())
     if configure_logging(settings.log_level):
-        logging.getLogger("knowledge_synthesizer.entrypoints").info(
-            "Startup — OpenAI key %s · model %s · embeddings %s · strategy %s · k=%d",
-            mask_secret(settings.openai_api_key),
-            settings.llm_model,
-            settings.embedding_model,
-            settings.query_strategy,
-            settings.retriever_k,
-        )
+        startup_log = logging.getLogger("knowledge_synthesizer.entrypoints")
+        startup_log.info("Startup configuration (%d settings):", len(rows))
+        for name, value in rows:
+            startup_log.info("  %s = %s", name, value)
 
     st.title("Knowledge Synthesizer")
     st.caption(
@@ -67,6 +65,8 @@ def _render() -> None:
         f"model `{settings.llm_model}`  ·  strategy `{settings.query_strategy}` "
         f"(k={settings.retriever_k})"
     )
+    with st.expander("⚙️ Configuration (from .env / defaults)", expanded=False):
+        st.table({"setting": [name for name, _ in rows], "value": [value for _, value in rows]})
     st.markdown(_STEPS)
     container = _container()
 

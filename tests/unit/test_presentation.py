@@ -17,6 +17,7 @@ from knowledge_synthesizer.entrypoints.presentation import (
     materialize_uploads,
     parse_source,
     parse_sources,
+    settings_rows,
     summary_markdown,
 )
 
@@ -81,6 +82,24 @@ def test_mask_secret_handles_empty_and_short() -> None:
     assert mask_secret("") == "(not set)"
     assert mask_secret("   ") == "(not set)"
     assert "len 5" in mask_secret("short")
+
+
+def test_settings_rows_masks_secrets_and_shows_the_rest() -> None:
+    rows = dict(
+        settings_rows(
+            {
+                "openai_api_key": "tok_ABCDEFGHIJKLMNOPQRST",
+                "llm_model": "gpt-4o-mini",
+                "retriever_k": 8,
+                "docling_do_ocr": True,
+            }
+        )
+    )
+    assert "ABCDEFGHIJ" not in rows["openai_api_key"]  # secret masked
+    assert rows["openai_api_key"].startswith("sk-proj")
+    assert rows["llm_model"] == "gpt-4o-mini"
+    assert rows["retriever_k"] == "8"
+    assert rows["docling_do_ocr"] == "True"
 
 
 def test_answer_markdown_with_and_without_citations() -> None:
