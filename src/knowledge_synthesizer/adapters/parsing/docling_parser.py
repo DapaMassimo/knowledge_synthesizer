@@ -69,9 +69,13 @@ class DoclingParser:
             converter if converter is not None else _build_converter(artifacts_path, do_ocr)
         )
         self._use_cache = use_cache
+        # OCR changes the parse output, so it must be part of the disk cache key.
+        self._disk_suffix = f".ocr{int(do_ocr)}"
 
     def parse(self, raw: RawDocument) -> ParsedDocument:
-        document = self._cache.get(raw.content_hash, use_disk=self._use_cache)
+        document = self._cache.get(
+            raw.content_hash, use_disk=self._use_cache, disk_suffix=self._disk_suffix
+        )
         if document is None:
             logger.info(
                 "Parsing %s (%s, %d bytes)…", raw.source.uri, raw.mime_type, len(raw.content)
@@ -80,7 +84,9 @@ class DoclingParser:
         else:
             logger.info("Parse cache hit for %s", raw.source.uri)
         # Always store in memory (parser -> chunker hand-off); disk gated by use_cache.
-        self._cache.put(raw.content_hash, document, use_disk=self._use_cache)
+        self._cache.put(
+            raw.content_hash, document, use_disk=self._use_cache, disk_suffix=self._disk_suffix
+        )
 
         markdown = document.export_to_markdown()
         return ParsedDocument(

@@ -100,11 +100,25 @@ def test_disk_cache_is_reused_by_a_fresh_parser(tmp_path: Path) -> None:
     first = _CountingConverter()
     _parser(DoclingDocumentCache(cache_dir=tmp_path), converter=first).parse(raw)
     assert first.calls == 1
-    assert (tmp_path / f"{raw.content_hash}.json").exists()
+    assert list(tmp_path.glob(f"{raw.content_hash}*.json"))  # cached on disk (with ocr suffix)
 
     second = _CountingConverter()
     _parser(DoclingDocumentCache(cache_dir=tmp_path), converter=second).parse(raw)
     assert second.calls == 0  # served from disk
+
+
+def test_changing_do_ocr_invalidates_the_disk_cache(tmp_path: Path) -> None:
+    raw = _raw(_MARKDOWN, "text/markdown", "italy.md")
+
+    without_ocr = _CountingConverter()
+    _parser(DoclingDocumentCache(cache_dir=tmp_path), converter=without_ocr, do_ocr=False).parse(
+        raw
+    )
+    assert without_ocr.calls == 1
+
+    with_ocr = _CountingConverter()
+    _parser(DoclingDocumentCache(cache_dir=tmp_path), converter=with_ocr, do_ocr=True).parse(raw)
+    assert with_ocr.calls == 1  # re-parsed: do_ocr is part of the cache key
 
 
 def test_no_cache_does_not_write_to_disk(tmp_path: Path) -> None:

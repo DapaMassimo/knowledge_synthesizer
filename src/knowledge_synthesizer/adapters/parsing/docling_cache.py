@@ -18,21 +18,30 @@ class DoclingDocumentCache:
         self._memory: dict[str, DoclingDocument] = {}
         self._cache_dir = cache_dir
 
-    def get(self, content_hash: str, *, use_disk: bool = True) -> DoclingDocument | None:
+    def get(
+        self, content_hash: str, *, use_disk: bool = True, disk_suffix: str = ""
+    ) -> DoclingDocument | None:
         cached = self._memory.get(content_hash)
         if cached is not None:
             return cached
         if use_disk and self._cache_dir is not None:
-            path = self._cache_dir / f"{content_hash}.json"
+            path = self._cache_dir / f"{content_hash}{disk_suffix}.json"
             if path.exists():
                 document = DoclingDocument.model_validate_json(path.read_text(encoding="utf-8"))
                 self._memory[content_hash] = document
                 return document
         return None
 
-    def put(self, content_hash: str, document: DoclingDocument, *, use_disk: bool = True) -> None:
+    def put(
+        self,
+        content_hash: str,
+        document: DoclingDocument,
+        *,
+        use_disk: bool = True,
+        disk_suffix: str = "",
+    ) -> None:
         self._memory[content_hash] = document
         if use_disk and self._cache_dir is not None:
             self._cache_dir.mkdir(parents=True, exist_ok=True)
-            path = self._cache_dir / f"{content_hash}.json"
+            path = self._cache_dir / f"{content_hash}{disk_suffix}.json"
             path.write_text(document.model_dump_json(), encoding="utf-8")
