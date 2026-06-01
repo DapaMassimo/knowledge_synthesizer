@@ -5,6 +5,8 @@ This is the only module allowed to import concrete adapters.
 
 from __future__ import annotations
 
+import os
+import ssl
 from pathlib import Path
 
 from openai import OpenAI
@@ -38,6 +40,17 @@ from knowledge_synthesizer.domain.ports import (
     Retriever,
     VectorStore,
 )
+
+
+def _create_openai_client(api_key: str | None) -> OpenAI:
+    try:
+        return OpenAI(api_key=api_key)
+    except ssl.SSLError:
+        # python-build-standalone's bundled OpenSSL can fail to initialize a mismatched
+        # system openssl.cnf ("CONF MODULE_INITIALIZATION_ERROR"). Bypass the OpenSSL config
+        # file and retry; on healthy systems the first attempt succeeds and config is kept.
+        os.environ["OPENSSL_CONF"] = os.devnull
+        return OpenAI(api_key=api_key)
 
 
 class Container:
@@ -81,7 +94,7 @@ class Container:
 
     def _openai(self) -> OpenAI:
         if self._client is None:
-            self._client = OpenAI(api_key=self._settings.openai_api_key or None)
+            self._client = _create_openai_client(self._settings.openai_api_key or None)
         return self._client
 
     def _embeddings(self) -> EmbeddingModel:

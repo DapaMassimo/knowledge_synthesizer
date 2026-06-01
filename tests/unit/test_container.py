@@ -41,6 +41,30 @@ def test_indexed_sources_is_empty_for_a_fresh_store() -> None:
     assert Container(_settings()).indexed_sources() == []
 
 
+def test_openai_client_retries_after_ssl_config_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+    import ssl
+
+    import knowledge_synthesizer.composition.container as module
+
+    monkeypatch.setenv("OPENSSL_CONF", "placeholder")  # snapshot, auto-restored on teardown
+    calls = {"n": 0}
+
+    def flaky_openai(api_key: str | None = None) -> object:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ssl.SSLError("CONF MODULE_INITIALIZATION_ERROR")
+        return object()
+
+    monkeypatch.setattr(module, "OpenAI", flaky_openai)
+
+    client = module._create_openai_client("sk-test")
+
+    assert calls["n"] == 2  # retried after the SSL error
+    assert client is not None
+    assert os.environ["OPENSSL_CONF"] == os.devnull
+
+
 @pytest.mark.parametrize(
     ("strategy", "expected"),
     [

@@ -30,15 +30,29 @@ def _quiet_noisy_libraries() -> None:
         logging.getLogger(name).setLevel(logging.ERROR)
 
 
+def _ensure_working_ssl() -> None:
+    """Work around python-build-standalone OpenSSL failing on a mismatched system config."""
+    import ssl
+
+    try:
+        ssl.create_default_context()
+    except ssl.SSLError:
+        os.environ["OPENSSL_CONF"] = os.devnull
+        logging.getLogger(_ROOT).warning(
+            "System OpenSSL config failed to initialize; set OPENSSL_CONF=%s to recover.",
+            os.devnull,
+        )
+
+
 def configure_logging(level: str = "INFO", *, to_console: bool = False) -> bool:
     """Attach the buffer (and optionally a console) handler once. Returns True if newly set up."""
     global _CONFIGURED
     logger = logging.getLogger(_ROOT)
     logger.setLevel(level.upper())
-    _quiet_noisy_libraries()
     if _CONFIGURED:
         return False
 
+    _quiet_noisy_libraries()
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s — %(message)s", "%H:%M:%S")
     buffer_handler = _BufferHandler()
     buffer_handler.setFormatter(formatter)
@@ -49,6 +63,7 @@ def configure_logging(level: str = "INFO", *, to_console: bool = False) -> bool:
         logger.addHandler(console_handler)
     logger.propagate = False
     _CONFIGURED = True
+    _ensure_working_ssl()  # after handlers so the warning lands in the buffer
     return True
 
 
