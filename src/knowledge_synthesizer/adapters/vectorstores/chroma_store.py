@@ -28,13 +28,20 @@ class ChromaVectorStore:
 
     @classmethod
     def persistent(cls, path: Path | str, name: str = _DEFAULT_COLLECTION) -> ChromaVectorStore:
+        path_str = str(path)
         try:
-            client = chromadb.PersistentClient(path=str(path))
-        except AttributeError:
-            # A stale in-process Chroma system (e.g. the persist dir was deleted while the
-            # app held it open) breaks client re-creation. Drop the cached systems and retry.
+            client = chromadb.PersistentClient(path=path_str)
+        except (AttributeError, KeyError):
+            # Corrupted in-process Chroma state — typically caused by deleting the persist
+            # dir while the app held it open. Drop the cached systems and retry once.
             _reset_chroma_system_cache()
-            client = chromadb.PersistentClient(path=str(path))
+            try:
+                client = chromadb.PersistentClient(path=path_str)
+            except (AttributeError, KeyError) as exc:
+                raise VectorStoreError(
+                    f"Chroma is in a corrupted in-process state (often from deleting "
+                    f"{path_str!r} while the app was running). Restart the app to recover."
+                ) from exc
         return cls(client.get_or_create_collection(name=name, metadata=_COSINE_SPACE))
 
     def upsert(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:

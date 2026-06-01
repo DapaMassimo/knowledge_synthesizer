@@ -98,7 +98,11 @@ def _render() -> None:
                 )
 
         st.divider()
-        indexed = container.indexed_sources()
+        try:
+            indexed = container.indexed_sources()
+        except Exception as exc:
+            st.error(f"Could not read the index — restart the app to recover. ({exc})")
+            indexed = []
         st.caption(f"**Indexed: {len(indexed)} document(s)** — kept across restarts")
         for source in indexed:
             label = source if source.startswith(("http://", "https://")) else Path(source).name

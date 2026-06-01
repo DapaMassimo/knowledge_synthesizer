@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from knowledge_synthesizer.adapters.vectorstores.chroma_store import ChromaVectorStore
+from knowledge_synthesizer.domain.errors import VectorStoreError
 from knowledge_synthesizer.domain.models import Chunk, ChunkProvenance
 
 pytestmark = pytest.mark.integration
@@ -100,6 +101,21 @@ def test_persistent_recovers_from_stale_system(
     assert calls["client"] == 2  # retried after the AttributeError
     assert calls["reset"] == 1  # cleared the stale system cache once
     assert store.existing_document_hashes() == set()
+
+
+def test_persistent_raises_clear_error_when_unrecoverable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import knowledge_synthesizer.adapters.vectorstores.chroma_store as module
+
+    def always_keyerror(path: str) -> object:
+        raise KeyError(path)
+
+    monkeypatch.setattr(module.chromadb, "PersistentClient", always_keyerror)
+    monkeypatch.setattr(module, "_reset_chroma_system_cache", lambda: None)
+
+    with pytest.raises(VectorStoreError, match="Restart the app"):
+        ChromaVectorStore.persistent(tmp_path, name="broken_collection")
 
 
 def test_persistent_store_round_trips(tmp_path: Path) -> None:
