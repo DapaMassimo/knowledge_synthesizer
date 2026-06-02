@@ -13,8 +13,9 @@ from collections import deque
 _ROOT = "knowledge_synthesizer"
 _BUFFER: deque[str] = deque(maxlen=1000)
 _CONFIGURED = False
-# Third-party libraries that spam warnings (e.g. transformers' lazy `__path__` access).
-_NOISY = ("transformers", "torch", "httpx", "httpcore")
+# Third-party libraries that spam warnings/info (transformers' lazy `__path__` access,
+# RapidOCR per-image info, HF Hub rate-limit notices, ...).
+_NOISY = ("transformers", "torch", "httpx", "httpcore", "RapidOCR", "huggingface_hub")
 
 
 class _BufferHandler(logging.Handler):
@@ -26,6 +27,8 @@ def _quiet_noisy_libraries() -> None:
     os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
     os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
     for name in _NOISY:
         logging.getLogger(name).setLevel(logging.ERROR)
 
