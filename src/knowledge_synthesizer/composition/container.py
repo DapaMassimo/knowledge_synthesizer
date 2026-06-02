@@ -62,29 +62,38 @@ class Container:
         self._store: ChromaVectorStore | None = None
         self._cache: DoclingDocumentCache | None = None
 
-    def indexing_service(self) -> IndexingService:
+    def indexing_service(
+        self, *, do_ocr: bool | None = None, embedding_model: str | None = None
+    ) -> IndexingService:
         cache = self._docling_cache()
         artifacts = self._settings.docling_artifacts_path
+        ocr = self._settings.docling_do_ocr if do_ocr is None else do_ocr
         return IndexingService(
             loader=RoutingSourceLoader(FileLoader(), WebLoader()),
             parser=DoclingParser(
                 cache=cache,
                 use_cache=self._settings.use_cache,
                 artifacts_path=Path(artifacts) if artifacts else None,
-                do_ocr=self._settings.docling_do_ocr,
+                do_ocr=ocr,
             ),
             chunker=DoclingChunker(cache=cache),
-            embeddings=self._embeddings(),
+            embeddings=self._embeddings(embedding_model),
             store=self._vector_store(),
         )
 
-    def qa_service(self) -> QAService:
-        return QAService(self._retriever(), self._llm(), k=self._settings.retriever_k)
+    def qa_service(
+        self, *, llm_model: str | None = None, embedding_model: str | None = None
+    ) -> QAService:
+        retriever = self._retriever(embedding_model=embedding_model, llm_model=llm_model)
+        return QAService(retriever, self._llm(llm_model), k=self._settings.retriever_k)
 
-    def summarization_service(self) -> SummarizationService:
+    def summarization_service(
+        self, *, llm_model: str | None = None, embedding_model: str | None = None
+    ) -> SummarizationService:
+        retriever = self._retriever(embedding_model=embedding_model, llm_model=llm_model)
         return SummarizationService(
-            self._retriever(),
-            MapReduceSummarizer(self._llm()),
+            retriever,
+            MapReduceSummarizer(self._llm(llm_model)),
             k=self._settings.summary_k,
         )
 
@@ -97,11 +106,11 @@ class Container:
             self._client = _create_openai_client(self._settings.openai_api_key or None)
         return self._client
 
-    def _embeddings(self) -> EmbeddingModel:
-        return OpenAIEmbeddings(self._openai(), model=self._settings.embedding_model)
+    def _embeddings(self, model: str | None = None) -> EmbeddingModel:
+        return OpenAIEmbeddings(self._openai(), model=model or self._settings.embedding_model)
 
-    def _llm(self) -> LLMProvider:
-        return OpenAILLM(self._openai(), model=self._settings.llm_model)
+    def _llm(self, model: str | None = None) -> LLMProvider:
+        return OpenAILLM(self._openai(), model=model or self._settings.llm_model)
 
     def _vector_store(self) -> VectorStore:
         if self._store is None:
@@ -121,12 +130,18 @@ class Container:
             self._cache = DoclingDocumentCache(cache_dir=cache_dir)
         return self._cache
 
-    def _transformer(self) -> QueryTransformer:
+    def _transformer(self, llm_model: str | None = None) -> QueryTransformer:
         if self._settings.query_strategy == "multiquery":
-            return MultiQueryTransformer(self._llm())
+            return MultiQueryTransformer(self._llm(llm_model))
         if self._settings.query_strategy == "hyde":
-            return HydeTransformer(self._llm())
+            return HydeTransformer(self._llm(llm_model))
         return PassthroughTransformer()
 
-    def _retriever(self) -> Retriever:
-        return VectorRetriever(self._embeddings(), self._vector_store(), self._transformer())
+    def _retriever(
+        self, *, embedding_model: str | None = None, llm_model: str | None = None
+    ) -> Retriever:
+        return VectorRetriever(
+            self._embeddings(embedding_model),
+            self._vector_store(),
+            self._transformer(llm_model),
+        )

@@ -76,3 +76,20 @@ def test_openai_client_retries_after_ssl_config_error(monkeypatch: pytest.Monkey
 def test_query_strategy_selects_transformer(strategy: str, expected: type) -> None:
     container = Container(_settings(query_strategy=strategy))
     assert isinstance(container._transformer(), expected)
+
+
+def test_model_overrides_are_applied() -> None:
+    container = Container(_settings())
+    assert container._llm()._model == "gpt-4o-mini"  # default from settings
+    assert container._llm("gpt-4o")._model == "gpt-4o"  # runtime override
+    assert container._embeddings("text-embedding-3-large")._model == "text-embedding-3-large"
+
+
+def test_services_accept_runtime_overrides() -> None:
+    container = Container(_settings())
+    assert isinstance(container.qa_service(llm_model="gpt-4o"), QAService)
+    assert isinstance(container.indexing_service(do_ocr=True), IndexingService)
+    assert isinstance(
+        container.summarization_service(embedding_model="text-embedding-3-large"),
+        SummarizationService,
+    )

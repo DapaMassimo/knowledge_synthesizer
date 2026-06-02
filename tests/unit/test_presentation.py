@@ -13,8 +13,10 @@ from knowledge_synthesizer.entrypoints.presentation import (
     answer_markdown,
     citation_markdown,
     citations_markdown,
+    conversation_markdown,
     mask_secret,
     materialize_uploads,
+    model_options,
     parse_source,
     parse_sources,
     settings_rows,
@@ -111,6 +113,23 @@ def test_answer_markdown_with_and_without_citations() -> None:
     assert "/a.pdf" in with_cite
 
     assert answer_markdown(Answer(question="q", text="No idea.", citations=[])) == "No idea."
+
+
+def test_model_options_puts_default_first_and_dedupes() -> None:
+    assert model_options("gpt-4o", ("gpt-4o-mini", "gpt-4o")) == ["gpt-4o", "gpt-4o-mini"]
+    assert model_options("", ("a", "b")) == ["a", "b"]
+
+
+def test_conversation_markdown_includes_every_turn() -> None:
+    answers = [
+        Answer(question="What is X?", text="X is foo [1].", citations=[Citation(source_uri="/a")]),
+        Answer(question="What is Y?", text="Y is bar.", citations=[]),
+    ]
+    markdown = conversation_markdown(answers)
+    assert "## What is X?" in markdown
+    assert "X is foo [1]." in markdown
+    assert "## What is Y?" in markdown
+    assert "Y is bar." in markdown
 
 
 def test_summary_markdown_renders_sections() -> None:

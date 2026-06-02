@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from knowledge_synthesizer.domain.models import (
@@ -16,6 +16,27 @@ from knowledge_synthesizer.domain.models import (
 
 _URL_PREFIXES = ("http://", "https://")
 _SECRET_HINTS = ("key", "token", "secret", "password")
+
+KNOWN_LLM_MODELS = ("gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1")
+KNOWN_EMBEDDING_MODELS = ("text-embedding-3-small", "text-embedding-3-large")
+
+
+def model_options(default: str, known: Iterable[str]) -> list[str]:
+    """Return selectable models with the configured default first (deduplicated)."""
+    options = [default] if default else []
+    for model in known:
+        if model not in options:
+            options.append(model)
+    return options
+
+
+def conversation_markdown(answers: list[Answer]) -> str:
+    """Render a whole Q&A conversation as a downloadable markdown transcript."""
+    blocks = ["# Conversation"]
+    for answer in answers:
+        blocks.append(f"## {answer.question}")
+        blocks.append(answer_markdown(answer))
+    return "\n\n".join(blocks)
 
 
 def parse_source(value: str) -> Source:

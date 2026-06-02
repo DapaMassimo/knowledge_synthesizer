@@ -16,11 +16,16 @@ import streamlit as st
 
 from knowledge_synthesizer.composition.container import Container
 from knowledge_synthesizer.config.settings import Settings
+from knowledge_synthesizer.domain.models import Answer, Source
 from knowledge_synthesizer.entrypoints.logsetup import clear_logs, configure_logging, get_logs
 from knowledge_synthesizer.entrypoints.presentation import (
+    KNOWN_EMBEDDING_MODELS,
+    KNOWN_LLM_MODELS,
     answer_markdown,
+    conversation_markdown,
     mask_secret,
     materialize_uploads,
+    model_options,
     parse_sources,
     settings_rows,
     summary_markdown,
@@ -28,6 +33,12 @@ from knowledge_synthesizer.entrypoints.presentation import (
 
 _UPLOAD_DIR = Path(".uploads")
 _UPLOAD_TYPES = ["pdf", "pptx", "docx", "txt", "md", "html"]
+
+_OCR_HELP = (
+    "Default OFF. Turn ON only for **scanned** PDFs (pages that are images with no "
+    "selectable text). For digital PDFs (selectable text) OCR adds a lot of time with no "
+    "benefit. You can override it per document above."
+)
 
 _STEPS = (
     "#### How to use\n"
@@ -49,6 +60,87 @@ def _run[T](coro: Coroutine[Any, Any, T]) -> T:
     return asyncio.run(coro)
 
 
+def _index(container: Container, jobs: list[tuple[bool, Source]], embedding_model: str) -> str:
+    """Index sources grouped by their OCR choice; returns a summary line."""
+    by_ocr: dict[bool, list[Source]] = {}
+    for do_ocr, source in jobs:
+        by_ocr.setdefault(do_ocr, []).append(source)
+    indexed = skipped = chunks = 0
+    for do_ocr, sources in by_ocr.items():
+        report = _run(
+            container.indexing_service(do_ocr=do_ocr, embedding_model=embedding_model).index(
+                sources
+            )
+        )
+        indexed += report.documents_indexed
+        skipped += report.documents_skipped
+        chunks += report.chunks_indexed
+    return f"Indexed {indexed} document(s), skipped {skipped}, {chunks} chunk(s)."
+
+
+def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
+    """Render the sidebar and return the selected (llm_model, embedding_model)."""
+    with st.sidebar:
+        st.header("Sources")
+        uploads = st.file_uploader(
+            "Upload documents", type=_UPLOAD_TYPES, accept_multiple_files=True, key="uploads_input"
+        )
+        ocr_default = st.toggle("🔍 OCR (default)", value=settings.docling_do_ocr, help=_OCR_HELP)
+        per_file_ocr: dict[str, bool] = {}
+        if uploads:
+            with st.expander("OCR per document", expanded=False):
+                for file in uploads:
+                    per_file_ocr[file.name] = st.checkbox(
+                        file.name, value=ocr_default, key=f"ocr_{file.name}"
+                    )
+        raw_sources = st.text_area(
+            "…or paste file paths / URLs (one per line)", key="sources_input"
+        )
+
+        llm_model = st.selectbox(
+            "LLM model (answers & summaries)",
+            model_options(settings.llm_model, KNOWN_LLM_MODELS),
+            help="Safe to change anytime — it doesn't affect the index.",
+        )
+        embedding_model = st.selectbox(
+            "Embedding model (index & search)",
+            model_options(settings.embedding_model, KNOWN_EMBEDDING_MODELS),
+            help="⚠️ Changing this needs a fresh index (different vector space/size).",
+        )
+        if embedding_model != settings.embedding_model:
+            st.warning("Embedding model changed: clear the index (rm -rf .chroma) and re-index.")
+
+        if st.button("Index", key="index_button"):
+            uploaded = (
+                materialize_uploads([(f.name, f.getvalue()) for f in uploads], _UPLOAD_DIR)
+                if uploads
+                else []
+            )
+            jobs: list[tuple[bool, Source]] = [
+                (per_file_ocr.get(file.name, ocr_default), source)
+                for file, source in zip(uploads or [], uploaded, strict=True)
+            ]
+            jobs += [(ocr_default, source) for source in parse_sources(raw_sources)]
+            if not jobs:
+                st.warning("Upload a document or add a file path / URL.")
+            else:
+                with st.spinner("Indexing…"):
+                    st.success(_index(container, jobs, embedding_model))
+
+        st.divider()
+        try:
+            indexed = container.indexed_sources()
+        except Exception as exc:
+            st.error(f"Could not read the index — restart the app to recover. ({exc})")
+            indexed = []
+        st.caption(f"**Indexed: {len(indexed)} document(s)** — kept across restarts")
+        for source in indexed:
+            label = source if source.startswith(("http://", "https://")) else Path(source).name
+            st.caption(f"📄 {label}")
+
+    return str(llm_model), str(embedding_model)
+
+
 def _render() -> None:
     st.set_page_config(page_title="Knowledge Synthesizer", layout="wide")
     settings = Settings()
@@ -62,51 +154,14 @@ def _render() -> None:
     st.title("Knowledge Synthesizer")
     st.caption(
         f"🔑 OpenAI key: `{mask_secret(settings.openai_api_key)}`  ·  "
-        f"model `{settings.llm_model}`  ·  strategy `{settings.query_strategy}` "
-        f"(k={settings.retriever_k})"
+        f"strategy `{settings.query_strategy}` (k={settings.retriever_k})"
     )
     with st.expander("⚙️ Configuration (from .env / defaults)", expanded=False):
         st.table({"setting": [name for name, _ in rows], "value": [value for _, value in rows]})
     st.markdown(_STEPS)
+
     container = _container()
-
-    with st.sidebar:
-        st.header("Sources")
-        uploads = st.file_uploader(
-            "Upload documents",
-            type=_UPLOAD_TYPES,
-            accept_multiple_files=True,
-            key="uploads_input",
-        )
-        raw_sources = st.text_area(
-            "…or paste file paths / URLs (one per line)", key="sources_input"
-        )
-        if st.button("Index", key="index_button"):
-            sources = parse_sources(raw_sources)
-            if uploads:
-                sources += materialize_uploads(
-                    [(file.name, file.getvalue()) for file in uploads], _UPLOAD_DIR
-                )
-            if not sources:
-                st.warning("Upload a document or add a file path / URL.")
-            else:
-                with st.spinner("Indexing…"):
-                    report = _run(container.indexing_service().index(sources))
-                st.success(
-                    f"Indexed {report.documents_indexed} document(s), "
-                    f"skipped {report.documents_skipped}, {report.chunks_indexed} chunk(s)."
-                )
-
-        st.divider()
-        try:
-            indexed = container.indexed_sources()
-        except Exception as exc:
-            st.error(f"Could not read the index — restart the app to recover. ({exc})")
-            indexed = []
-        st.caption(f"**Indexed: {len(indexed)} document(s)** — kept across restarts")
-        for source in indexed:
-            label = source if source.startswith(("http://", "https://")) else Path(source).name
-            st.caption(f"📄 {label}")
+    llm_model, embedding_model = _sidebar(container, settings)
 
     summary_tab, qa_tab = st.tabs(["Summary", "Ask"])
 
@@ -114,17 +169,45 @@ def _render() -> None:
         topic = st.text_input("Topic", key="topic_input")
         if st.button("Summarize", key="summarize_button") and topic.strip():
             with st.spinner("Summarizing…"):
-                summary = _run(container.summarization_service().summarize(topic.strip()))
+                summary = _run(
+                    container.summarization_service(
+                        llm_model=llm_model, embedding_model=embedding_model
+                    ).summarize(topic.strip())
+                )
             st.markdown(summary_markdown(summary))
 
     with qa_tab:
+        if "qa_history" not in st.session_state:
+            st.session_state["qa_history"] = []
+        history: list[Answer] = st.session_state["qa_history"]
+
+        for past in history:
+            with st.chat_message("user"):
+                st.markdown(past.question)
+            with st.chat_message("assistant"):
+                st.markdown(answer_markdown(past))
+                with st.popover("📋 Copy answer"):
+                    st.code(past.text, language=None)
+
+        if history:
+            st.download_button(
+                "⬇️ Download conversation",
+                conversation_markdown(history),
+                file_name="conversation.md",
+                mime="text/markdown",
+                key="download_conversation",
+            )
+
         question = st.chat_input("Ask a question about your sources")
         if question:
-            with st.chat_message("user"):
-                st.markdown(question)
-            with st.chat_message("assistant"), st.spinner("Thinking…"):
-                answer = _run(container.qa_service().ask(question))
-                st.markdown(answer_markdown(answer))
+            with st.spinner("Thinking…"):
+                answer = _run(
+                    container.qa_service(llm_model=llm_model, embedding_model=embedding_model).ask(
+                        question
+                    )
+                )
+            history.append(answer)
+            st.rerun()
 
     with st.expander("📋 Logs", expanded=False):
         if st.button("Clear logs", key="clear_logs_button"):
