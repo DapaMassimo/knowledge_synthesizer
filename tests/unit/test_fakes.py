@@ -61,3 +61,19 @@ def test_vector_store_reports_existing_document_hashes() -> None:
     store.upsert(chunks, emb.embed([c.text for c in chunks]))
     assert store.existing_document_hashes() == {"hash-a", "hash-b"}
     assert store.indexed_sources() == ["/a.pdf"]  # both chunks share the same source_uri
+
+
+def test_vector_store_delete_source_removes_only_that_source() -> None:
+    store = InMemoryVectorStore()
+    a = Chunk(
+        chunk_id="a", text="x", document_hash="h1", provenance=ChunkProvenance(source_uri="/a")
+    )
+    b = Chunk(
+        chunk_id="b", text="y", document_hash="h2", provenance=ChunkProvenance(source_uri="/b")
+    )
+    store.upsert([a, b], [[1.0], [0.0]])
+
+    store.delete_source("/a")
+
+    assert store.indexed_sources() == ["/b"]
+    assert len(store) == 1

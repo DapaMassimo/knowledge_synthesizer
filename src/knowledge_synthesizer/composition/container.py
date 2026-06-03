@@ -101,6 +101,10 @@ class Container:
         """Source URIs already in the vector store (persisted across restarts)."""
         return self._vector_store().indexed_sources()
 
+    def remove_source(self, source_uri: str) -> None:
+        """Delete a document and its embeddings from the vector store."""
+        self._vector_store().delete_source(source_uri)
+
     def _openai(self) -> OpenAI:
         if self._client is None:
             self._client = _create_openai_client(self._settings.openai_api_key or None)

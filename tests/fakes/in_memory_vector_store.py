@@ -31,6 +31,13 @@ class InMemoryVectorStore:
     def indexed_sources(self) -> list[str]:
         return sorted({chunk.provenance.source_uri for chunk, _ in self._items.values()})
 
+    def delete_source(self, source_uri: str) -> None:
+        self._items = {
+            chunk_id: entry
+            for chunk_id, entry in self._items.items()
+            if entry[0].provenance.source_uri != source_uri
+        }
+
     def __len__(self) -> int:
         return len(self._items)
 

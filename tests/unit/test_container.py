@@ -10,6 +10,7 @@ from knowledge_synthesizer.application.qa import QAService
 from knowledge_synthesizer.application.summarization import SummarizationService
 from knowledge_synthesizer.composition.container import Container
 from knowledge_synthesizer.config.settings import Settings
+from knowledge_synthesizer.domain.models import Chunk, ChunkProvenance
 
 pytestmark = pytest.mark.unit
 
@@ -39,6 +40,22 @@ def test_vector_store_and_cache_are_memoized() -> None:
 
 def test_indexed_sources_is_empty_for_a_fresh_store() -> None:
     assert Container(_settings()).indexed_sources() == []
+
+
+def test_remove_source_deletes_a_document_and_its_embeddings() -> None:
+    container = Container(_settings())
+    chunk = Chunk(
+        chunk_id="a",
+        text="x",
+        document_hash="h",
+        provenance=ChunkProvenance(source_uri="/a.pdf"),
+    )
+    container._vector_store().upsert([chunk], [[1.0, 0.0]])
+    assert container.indexed_sources() == ["/a.pdf"]
+
+    container.remove_source("/a.pdf")
+
+    assert container.indexed_sources() == []
 
 
 def test_openai_client_retries_after_ssl_config_error(monkeypatch: pytest.MonkeyPatch) -> None:

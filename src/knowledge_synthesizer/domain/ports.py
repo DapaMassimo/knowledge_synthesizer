@@ -58,6 +58,10 @@ class VectorStore(Protocol):
         """Distinct source URIs currently stored — for showing what's already indexed."""
         ...
 
+    def delete_source(self, source_uri: str) -> None:
+        """Remove all chunks (and vectors) belonging to a source URI."""
+        ...
+
 
 @runtime_checkable
 class Retriever(Protocol):

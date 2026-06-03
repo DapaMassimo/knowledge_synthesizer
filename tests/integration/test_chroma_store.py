@@ -77,6 +77,30 @@ def test_empty_upsert_is_a_noop() -> None:
     assert store.existing_document_hashes() == set()
 
 
+def test_delete_source_removes_only_that_source() -> None:
+    store = ChromaVectorStore.ephemeral(name="delete_collection")
+    chunks = [
+        Chunk(
+            chunk_id="a",
+            text="x",
+            document_hash="h1",
+            provenance=ChunkProvenance(source_uri="/a.pdf"),
+        ),
+        Chunk(
+            chunk_id="b",
+            text="y",
+            document_hash="h2",
+            provenance=ChunkProvenance(source_uri="/b.pdf"),
+        ),
+    ]
+    store.upsert(chunks, [[1.0, 0.0], [0.0, 1.0]])
+
+    store.delete_source("/a.pdf")
+
+    assert store.indexed_sources() == ["/b.pdf"]
+    assert store.existing_document_hashes() == {"h2"}
+
+
 def test_persistent_recovers_from_stale_system(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

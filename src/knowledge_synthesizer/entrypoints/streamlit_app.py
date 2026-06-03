@@ -19,8 +19,6 @@ from knowledge_synthesizer.config.settings import Settings
 from knowledge_synthesizer.domain.models import Answer, Source
 from knowledge_synthesizer.entrypoints.logsetup import clear_logs, configure_logging, get_logs
 from knowledge_synthesizer.entrypoints.presentation import (
-    KNOWN_EMBEDDING_MODELS,
-    KNOWN_LLM_MODELS,
     answer_markdown,
     conversation_markdown,
     mask_secret,
@@ -99,12 +97,12 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
 
         llm_model = st.selectbox(
             "LLM model (answers & summaries)",
-            model_options(settings.llm_model, KNOWN_LLM_MODELS),
+            model_options(settings.llm_model, settings.llm_models),
             help="Safe to change anytime — it doesn't affect the index.",
         )
         embedding_model = st.selectbox(
             "Embedding model (index & search)",
-            model_options(settings.embedding_model, KNOWN_EMBEDDING_MODELS),
+            model_options(settings.embedding_model, settings.embedding_models),
             help="⚠️ Changing this needs a fresh index (different vector space/size).",
         )
         if embedding_model != settings.embedding_model:
@@ -136,7 +134,11 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
         st.caption(f"**Indexed: {len(indexed)} document(s)** — kept across restarts")
         for source in indexed:
             label = source if source.startswith(("http://", "https://")) else Path(source).name
-            st.caption(f"📄 {label}")
+            row, action = st.columns([5, 1])
+            row.caption(f"📄 {label}")
+            if action.button("🗑️", key=f"remove_{source}", help="Remove this document & embeddings"):
+                container.remove_source(source)
+                st.rerun()
 
     return str(llm_model), str(embedding_model)
 

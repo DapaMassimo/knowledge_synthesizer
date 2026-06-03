@@ -17,9 +17,6 @@ from knowledge_synthesizer.domain.models import (
 _URL_PREFIXES = ("http://", "https://")
 _SECRET_HINTS = ("key", "token", "secret", "password")
 
-KNOWN_LLM_MODELS = ("gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1")
-KNOWN_EMBEDDING_MODELS = ("text-embedding-3-small", "text-embedding-3-large")
-
 
 def model_options(default: str, known: Iterable[str]) -> list[str]:
     """Return selectable models with the configured default first (deduplicated)."""

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -18,6 +18,25 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-small"
     embedding_backend: Literal["openai"] = "openai"
+
+    # Selectable models in the UI dropdowns (comma-separated in env, e.g. KS_LLM_MODELS=a,b,c).
+    llm_models: Annotated[list[str], NoDecode] = [
+        "gpt-4o-mini",
+        "gpt-4o",
+        "gpt-4.1-mini",
+        "gpt-4.1",
+    ]
+    embedding_models: Annotated[list[str], NoDecode] = [
+        "text-embedding-3-small",
+        "text-embedding-3-large",
+    ]
+
+    @field_validator("llm_models", "embedding_models", mode="before")
+    @classmethod
+    def _split_csv(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
     chroma_path: str | None = ".chroma"
     collection_name: str = "knowledge"

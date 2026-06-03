@@ -96,6 +96,12 @@ class ChromaVectorStore:
             }
         )
 
+    def delete_source(self, source_uri: str) -> None:
+        try:
+            self._collection.delete(where={"source_uri": source_uri})
+        except (chromadb.errors.ChromaError, ValueError) as exc:
+            raise VectorStoreError(f"chroma delete failed: {exc}") from exc
+
     def _all_metadatas(self) -> list[dict[str, Any]]:
         try:
             raw = self._collection.get(include=["metadatas"])
