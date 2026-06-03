@@ -29,7 +29,6 @@ from knowledge_synthesizer.entrypoints.presentation import (
     summary_markdown,
 )
 
-_UPLOAD_DIR = Path(".uploads")
 _UPLOAD_TYPES = ["pdf", "pptx", "docx", "txt", "md", "html"]
 
 _OCR_HELP = (
@@ -78,6 +77,8 @@ def _index(container: Container, jobs: list[tuple[bool, Source]], embedding_mode
 
 def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
     """Render the sidebar and return the selected (llm_model, embedding_model)."""
+    uploads_dir = Path(settings.uploads_dir)
+    llm_choices, embedding_choices = container.available_models()
     with st.sidebar:
         st.header("Sources")
         uploads = st.file_uploader(
@@ -97,12 +98,15 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
 
         llm_model = st.selectbox(
             "LLM model (answers & summaries)",
-            model_options(settings.llm_model, settings.llm_models),
-            help="Safe to change anytime — it doesn't affect the index.",
+            model_options(settings.llm_model, [*settings.llm_models, *llm_choices]),
+            help="Live list from your OpenAI account (falls back to KS_LLM_MODELS). "
+            "Safe to change anytime — it doesn't affect the index.",
         )
         embedding_model = st.selectbox(
             "Embedding model (index & search)",
-            model_options(settings.embedding_model, settings.embedding_models),
+            model_options(
+                settings.embedding_model, [*settings.embedding_models, *embedding_choices]
+            ),
             help="⚠️ Changing this needs a fresh index (different vector space/size).",
         )
         if embedding_model != settings.embedding_model:
@@ -110,7 +114,7 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
 
         if st.button("Index", key="index_button"):
             uploaded = (
-                materialize_uploads([(f.name, f.getvalue()) for f in uploads], _UPLOAD_DIR)
+                materialize_uploads([(f.name, f.getvalue()) for f in uploads], uploads_dir)
                 if uploads
                 else []
             )

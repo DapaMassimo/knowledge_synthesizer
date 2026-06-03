@@ -95,6 +95,8 @@ def test_delete_source_removes_only_that_source() -> None:
     ]
     store.upsert(chunks, [[1.0, 0.0], [0.0, 1.0]])
 
+    assert store.document_hashes_for("/a.pdf") == {"h1"}
+
     store.delete_source("/a.pdf")
 
     assert store.indexed_sources() == ["/b.pdf"]

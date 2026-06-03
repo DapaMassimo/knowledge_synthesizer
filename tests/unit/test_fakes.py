@@ -73,6 +73,8 @@ def test_vector_store_delete_source_removes_only_that_source() -> None:
     )
     store.upsert([a, b], [[1.0], [0.0]])
 
+    assert store.document_hashes_for("/a") == {"h1"}
+
     store.delete_source("/a")
 
     assert store.indexed_sources() == ["/b"]

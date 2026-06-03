@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     chroma_path: str | None = ".chroma"
     collection_name: str = "knowledge"
+    uploads_dir: str = ".uploads"
     docling_cache_dir: str | None = ".cache/docling"
     docling_artifacts_path: str | None = None
     docling_do_ocr: bool = True

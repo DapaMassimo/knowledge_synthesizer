@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from knowledge_synthesizer.adapters.retrieval.query_transformers import (
@@ -42,20 +44,66 @@ def test_indexed_sources_is_empty_for_a_fresh_store() -> None:
     assert Container(_settings()).indexed_sources() == []
 
 
-def test_remove_source_deletes_a_document_and_its_embeddings() -> None:
-    container = Container(_settings())
+def test_remove_source_does_total_cleanup(tmp_path: Path) -> None:
+    uploads = tmp_path / "uploads"
+    cache_dir = tmp_path / "cache"
+    uploads.mkdir()
+    cache_dir.mkdir()
+    upload_file = uploads / "doc.pdf"
+    upload_file.write_bytes(b"data")
+    cache_file = cache_dir / "h1.ocr0.json"
+    cache_file.write_text("{}")
+
+    container = Container(_settings(uploads_dir=str(uploads), docling_cache_dir=str(cache_dir)))
+    chunk = Chunk(
+        chunk_id="a",
+        text="x",
+        document_hash="h1",
+        provenance=ChunkProvenance(source_uri=str(upload_file)),
+    )
+    container._vector_store().upsert([chunk], [[1.0, 0.0]])
+    assert container.indexed_sources() == [str(upload_file)]
+
+    container.remove_source(str(upload_file))
+
+    assert container.indexed_sources() == []  # embeddings gone
+    assert not cache_file.exists()  # parse cache gone
+    assert not upload_file.exists()  # uploaded file gone
+
+
+def test_remove_source_keeps_files_outside_the_uploads_dir(tmp_path: Path) -> None:
+    outside = tmp_path / "external.pdf"
+    outside.write_bytes(b"data")
+    container = Container(_settings(uploads_dir=str(tmp_path / "uploads")))
     chunk = Chunk(
         chunk_id="a",
         text="x",
         document_hash="h",
-        provenance=ChunkProvenance(source_uri="/a.pdf"),
+        provenance=ChunkProvenance(source_uri=str(outside)),
     )
     container._vector_store().upsert([chunk], [[1.0, 0.0]])
-    assert container.indexed_sources() == ["/a.pdf"]
 
-    container.remove_source("/a.pdf")
+    container.remove_source(str(outside))
 
     assert container.indexed_sources() == []
+    assert outside.exists()  # a pasted external path is never deleted
+
+
+def test_available_models_falls_back_on_api_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from openai import OpenAIError
+
+    import knowledge_synthesizer.composition.container as module
+
+    def boom(_client: object) -> object:
+        raise OpenAIError("nope")
+
+    monkeypatch.setattr(module, "fetch_models", boom)
+    container = Container(_settings(llm_models=["only-llm"], embedding_models=["only-emb"]))
+
+    llms, embeddings = container.available_models()
+
+    assert llms == ["only-llm"]
+    assert embeddings == ["only-emb"]
 
 
 def test_openai_client_retries_after_ssl_config_error(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -45,3 +45,10 @@ class DoclingDocumentCache:
             self._cache_dir.mkdir(parents=True, exist_ok=True)
             path = self._cache_dir / f"{content_hash}{disk_suffix}.json"
             path.write_text(document.model_dump_json(), encoding="utf-8")
+
+    def delete(self, content_hash: str) -> None:
+        """Drop a cached document from memory and disk (all parse variants for the hash)."""
+        self._memory.pop(content_hash, None)
+        if self._cache_dir is not None:
+            for path in self._cache_dir.glob(f"{content_hash}*.json"):
+                path.unlink(missing_ok=True)

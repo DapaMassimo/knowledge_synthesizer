@@ -62,6 +62,10 @@ class VectorStore(Protocol):
         """Remove all chunks (and vectors) belonging to a source URI."""
         ...
 
+    def document_hashes_for(self, source_uri: str) -> set[str]:
+        """Content hashes of the documents stored under a source URI."""
+        ...
+
 
 @runtime_checkable
 class Retriever(Protocol):

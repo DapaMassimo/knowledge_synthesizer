@@ -38,6 +38,13 @@ class InMemoryVectorStore:
             if entry[0].provenance.source_uri != source_uri
         }
 
+    def document_hashes_for(self, source_uri: str) -> set[str]:
+        return {
+            chunk.document_hash
+            for chunk, _ in self._items.values()
+            if chunk.provenance.source_uri == source_uri
+        }
+
     def __len__(self) -> int:
         return len(self._items)
 

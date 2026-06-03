@@ -1,4 +1,4 @@
-.PHONY: install lint format type test test-unit test-int test-eval check run cli clean hooks
+.PHONY: install lint format type test test-unit test-int test-eval check run reset cli clean hooks
 
 install:
 	uv sync --all-groups
@@ -29,6 +29,11 @@ check: lint type test
 
 run:
 	uv run streamlit run src/knowledge_synthesizer/entrypoints/streamlit_app.py
+
+reset:
+	-pkill -f "streamlit run" 2>/dev/null || true
+	rm -rf .chroma .uploads .cache/docling
+	@echo "Wiped index (.chroma), uploads (.uploads) and parse cache (.cache/docling). Run 'make run'."
 
 cli:
 	uv run python -m knowledge_synthesizer.entrypoints.cli

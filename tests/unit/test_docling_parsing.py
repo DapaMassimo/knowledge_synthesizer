@@ -121,6 +121,17 @@ def test_changing_do_ocr_invalidates_the_disk_cache(tmp_path: Path) -> None:
     assert with_ocr.calls == 1  # re-parsed: do_ocr is part of the cache key
 
 
+def test_cache_delete_removes_disk_files(tmp_path: Path) -> None:
+    cache = DoclingDocumentCache(cache_dir=tmp_path)
+    raw = _raw(_MARKDOWN, "text/markdown", "italy.md")
+    _parser(cache).parse(raw)
+    assert list(tmp_path.glob(f"{raw.content_hash}*.json"))
+
+    cache.delete(raw.content_hash)
+
+    assert not list(tmp_path.glob(f"{raw.content_hash}*.json"))
+
+
 def test_no_cache_does_not_write_to_disk(tmp_path: Path) -> None:
     raw = _raw(_MARKDOWN, "text/markdown", "italy.md")
     parser = _parser(DoclingDocumentCache(cache_dir=tmp_path), use_cache=False)

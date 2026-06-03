@@ -102,6 +102,18 @@ class ChromaVectorStore:
         except (chromadb.errors.ChromaError, ValueError) as exc:
             raise VectorStoreError(f"chroma delete failed: {exc}") from exc
 
+    def document_hashes_for(self, source_uri: str) -> set[str]:
+        try:
+            raw = self._collection.get(where={"source_uri": source_uri}, include=["metadatas"])
+        except (chromadb.errors.ChromaError, ValueError) as exc:
+            raise VectorStoreError(f"chroma get failed: {exc}") from exc
+        result = cast("dict[str, Any]", raw)
+        return {
+            str(metadata["document_hash"])
+            for metadata in (result.get("metadatas") or [])
+            if metadata and metadata.get("document_hash") is not None
+        }
+
     def _all_metadatas(self) -> list[dict[str, Any]]:
         try:
             raw = self._collection.get(include=["metadatas"])

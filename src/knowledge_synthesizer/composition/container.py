@@ -9,10 +9,11 @@ import os
 import ssl
 from pathlib import Path
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 from knowledge_synthesizer.adapters.embeddings.openai_embeddings import OpenAIEmbeddings
 from knowledge_synthesizer.adapters.llm.openai_llm import OpenAILLM
+from knowledge_synthesizer.adapters.llm.openai_models import fetch_models
 from knowledge_synthesizer.adapters.loaders.file_loader import FileLoader
 from knowledge_synthesizer.adapters.loaders.routing_loader import RoutingSourceLoader
 from knowledge_synthesizer.adapters.loaders.web_loader import WebLoader
@@ -61,6 +62,7 @@ class Container:
         self._client: OpenAI | None = None
         self._store: ChromaVectorStore | None = None
         self._cache: DoclingDocumentCache | None = None
+        self._models: tuple[list[str], list[str]] | None = None
 
     def indexing_service(
         self, *, do_ocr: bool | None = None, embedding_model: str | None = None
@@ -102,8 +104,37 @@ class Container:
         return self._vector_store().indexed_sources()
 
     def remove_source(self, source_uri: str) -> None:
-        """Delete a document and its embeddings from the vector store."""
-        self._vector_store().delete_source(source_uri)
+        """Total cleanup: delete a document's embeddings, parse cache, and uploaded file."""
+        store = self._vector_store()
+        hashes = store.document_hashes_for(source_uri)
+        store.delete_source(source_uri)
+        cache = self._docling_cache()
+        for content_hash in hashes:
+            cache.delete(content_hash)
+        self._delete_upload(source_uri)
+
+    def _delete_upload(self, source_uri: str) -> None:
+        """Delete the file only if it lives inside the managed uploads directory."""
+        uploads = Path(self._settings.uploads_dir).resolve()
+        try:
+            target = Path(source_uri).resolve()
+        except (OSError, ValueError):
+            return
+        if uploads in target.parents and target.is_file():
+            target.unlink(missing_ok=True)
+
+    def available_models(self) -> tuple[list[str], list[str]]:
+        """Live (llm_models, embedding_models) from the API, or the configured lists on failure."""
+        if self._models is None:
+            try:
+                llms, embeddings = fetch_models(self._openai())
+            except (OpenAIError, ssl.SSLError, OSError):
+                llms, embeddings = [], []
+            self._models = (
+                llms or list(self._settings.llm_models),
+                embeddings or list(self._settings.embedding_models),
+            )
+        return self._models
 
     def _openai(self) -> OpenAI:
         if self._client is None:
