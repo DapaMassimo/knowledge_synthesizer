@@ -57,28 +57,24 @@ def _run[T](coro: Coroutine[Any, Any, T]) -> T:
     return asyncio.run(coro)
 
 
-def _index(container: Container, jobs: list[tuple[bool, Source]], embedding_model: str) -> str:
+def _index(container: Container, jobs: list[tuple[bool, Source]]) -> str:
     """Index sources grouped by their OCR choice; returns a summary line."""
     by_ocr: dict[bool, list[Source]] = {}
     for do_ocr, source in jobs:
         by_ocr.setdefault(do_ocr, []).append(source)
     indexed = skipped = chunks = 0
     for do_ocr, sources in by_ocr.items():
-        report = _run(
-            container.indexing_service(do_ocr=do_ocr, embedding_model=embedding_model).index(
-                sources
-            )
-        )
+        report = _run(container.indexing_service(do_ocr=do_ocr).index(sources))
         indexed += report.documents_indexed
         skipped += report.documents_skipped
         chunks += report.chunks_indexed
     return f"Indexed {indexed} document(s), skipped {skipped}, {chunks} chunk(s)."
 
 
-def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
-    """Render the sidebar and return the selected (llm_model, embedding_model)."""
+def _sidebar(container: Container, settings: Settings) -> str:
+    """Render the sidebar and return the selected LLM model."""
     uploads_dir = Path(settings.uploads_dir)
-    llm_choices, embedding_choices = container.available_models()
+    llm_choices, _ = container.available_models()
     with st.sidebar:
         st.header("Sources")
         uploads = st.file_uploader(
@@ -102,15 +98,9 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
             help="Live list from your OpenAI account (falls back to KS_LLM_MODELS). "
             "Safe to change anytime — it doesn't affect the index.",
         )
-        embedding_model = st.selectbox(
-            "Embedding model (index & search)",
-            model_options(
-                settings.embedding_model, [*settings.embedding_models, *embedding_choices]
-            ),
-            help="⚠️ Changing this needs a fresh index (different vector space/size).",
+        st.caption(
+            f"Embeddings: `{settings.embedding_model}` (fixed — changing it would break the index)"
         )
-        if embedding_model != settings.embedding_model:
-            st.warning("Embedding model changed: clear the index (rm -rf .chroma) and re-index.")
 
         if st.button("Index", key="index_button"):
             uploaded = (
@@ -127,7 +117,7 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
                 st.warning("Upload a document or add a file path / URL.")
             else:
                 with st.spinner("Indexing…"):
-                    st.success(_index(container, jobs, embedding_model))
+                    st.success(_index(container, jobs))
 
         st.divider()
         try:
@@ -144,7 +134,7 @@ def _sidebar(container: Container, settings: Settings) -> tuple[str, str]:
                 container.remove_source(source)
                 st.rerun()
 
-    return str(llm_model), str(embedding_model)
+    return str(llm_model)
 
 
 def _render() -> None:
@@ -167,7 +157,7 @@ def _render() -> None:
     st.markdown(_STEPS)
 
     container = _container()
-    llm_model, embedding_model = _sidebar(container, settings)
+    llm_model = _sidebar(container, settings)
 
     summary_tab, qa_tab = st.tabs(["Summary", "Ask"])
 
@@ -176,9 +166,7 @@ def _render() -> None:
         if st.button("Summarize", key="summarize_button") and topic.strip():
             with st.spinner("Summarizing…"):
                 summary = _run(
-                    container.summarization_service(
-                        llm_model=llm_model, embedding_model=embedding_model
-                    ).summarize(topic.strip())
+                    container.summarization_service(llm_model=llm_model).summarize(topic.strip())
                 )
             st.markdown(summary_markdown(summary))
 
@@ -207,11 +195,7 @@ def _render() -> None:
         question = st.chat_input("Ask a question about your sources")
         if question:
             with st.spinner("Thinking…"):
-                answer = _run(
-                    container.qa_service(llm_model=llm_model, embedding_model=embedding_model).ask(
-                        question
-                    )
-                )
+                answer = _run(container.qa_service(llm_model=llm_model).ask(question))
             history.append(answer)
             st.rerun()
 
