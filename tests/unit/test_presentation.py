@@ -75,9 +75,9 @@ def test_citations_markdown_empty_is_blank() -> None:
 def test_mask_secret_hides_the_value_but_identifies_it() -> None:
     masked = mask_secret("tok_ABCDEFGHIJKLMNOPQRST")
     assert "ABCDEFGHIJ" not in masked  # the middle is hidden
-    assert masked.startswith("sk-proj")
-    assert "mCEA" in masked
-    assert "len 28" in masked
+    assert masked.startswith("tok_ABC")
+    assert "QRST" in masked
+    assert "len 24" in masked
 
 
 def test_mask_secret_handles_empty_and_short() -> None:
@@ -98,7 +98,7 @@ def test_settings_rows_masks_secrets_and_shows_the_rest() -> None:
         )
     )
     assert "ABCDEFGHIJ" not in rows["openai_api_key"]  # secret masked
-    assert rows["openai_api_key"].startswith("sk-proj")
+    assert rows["openai_api_key"].startswith("tok_")
     assert rows["llm_model"] == "gpt-4o-mini"
     assert rows["retriever_k"] == "8"
     assert rows["docling_do_ocr"] == "True"
